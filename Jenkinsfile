@@ -13,7 +13,7 @@ pipeline {
         DOCKER_IMAGE = '66raven99/java-web-app:latest'
         K8S_NAMESPACE = 'default'
         K8S_DEPLOYMENT = 'java-web-app'
-        SONAR_HOST_URL = 'http://localhost:9000'
+        SONAR_HOST_URL = 'http://192.168.33.10:9000'
     }
 
     stages {
