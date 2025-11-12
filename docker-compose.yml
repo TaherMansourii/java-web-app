@@ -1,6 +1,5 @@
-version: '3'
 services:
   java-web-app:
     image: 66raven99/java-web-app:latest
     ports:
-      - "8080:8080"
+      - "8081:8080"   # Map host 8081 to container 8080
