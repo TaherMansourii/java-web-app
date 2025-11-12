@@ -1,5 +1,11 @@
+version: "3.9"
+
 services:
   java-web-app:
     image: 66raven99/java-web-app:latest
+    container_name: java-web-app
     ports:
-      - "8081:8080"   # Map host 8081 to container 8080
+      - "8080"   # Only specify container port; Docker will pick a free host port automatically
+    environment:
+      - PORT=8080
+    restart: unless-stopped
