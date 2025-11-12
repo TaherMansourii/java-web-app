@@ -8,7 +8,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('e22f124e-2767-44cf-930d-23dd19c842a7')
         GITHUB_CREDENTIALS = credentials('da270b62-31a2-44ed-a570-c701a933abf6')
-        DOCKER_IMAGE = 'tahermansourii/java-web-app:latest'
+        DOCKER_IMAGE = '66raven99/java-web-app:latest'
         K8S_NAMESPACE = 'default'
         K8S_DEPLOYMENT = 'java-web-app'
     }
