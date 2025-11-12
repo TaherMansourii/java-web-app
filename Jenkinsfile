@@ -41,16 +41,12 @@ pipeline {
 
 
 
-                stage('Deploy to Kubernetes') {
-                   steps {
-                   withCredentials([file(credentialsId: 'kubeconfig-minikube', variable: 'KUBECONFIG')]) {
-            sh """
-                echo "Using kubeconfig from Jenkins secret file"
-                kubectl --kubeconfig="$KUBECONFIG" config get-contexts
-                kubectl --kubeconfig="$KUBECONFIG" set image deployment/$K8S_DEPLOYMENT $K8S_DEPLOYMENT=$DOCKER_IMAGE -n $K8S_NAMESPACE
-                kubectl --kubeconfig="$KUBECONFIG" rollout status deployment/$K8S_DEPLOYMENT -n $K8S_NAMESPACE
-            """
-        }
+                 stage('Deploy with Docker Compose') {
+    steps {
+        sh """
+            docker-compose -f docker-compose.yml pull
+            docker-compose -f docker-compose.yml up -d
+        """
     }
 }
 
