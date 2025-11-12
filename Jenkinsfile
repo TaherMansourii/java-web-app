@@ -3,17 +3,16 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))
-        timeout(time: 60, unit: 'MINUTES') // optional: prevent long-running jobs
+        timeout(time: 60, unit: 'MINUTES')
     }
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('e22f124e-2767-44cf-930d-23dd19c842a7')
         GITHUB_CREDENTIALS = credentials('da270b62-31a2-44ed-a570-c701a933abf6')
-        SONAR_TOKEN = credentials('0a2bd260-f4d7-4b64-952b-b00c00f5a92b')
+        SONAR_TOKEN = credentials('bb76dcfb-4591-46c5-9481-1491b18c8cd9') // Updated Sonar token
         DOCKER_IMAGE = '66raven99/java-web-app:latest'
         K8S_NAMESPACE = 'default'
         K8S_DEPLOYMENT = 'java-web-app'
-        SONAR_HOST_URL = 'http://192.168.33.10:9000'
     }
 
     stages {
@@ -55,15 +54,9 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') { // Name of the SonarQube installation in Jenkins
-                    sh """
-                        echo "Running SonarQube scan..."
-                        ./mvnw sonar:sonar \
-                            -Dsonar.projectKey=java-web-app \
-                            -Dsonar.projectName='Java Web App' \
-                            -Dsonar.host.url=$SONAR_HOST_URL \
-                            -Dsonar.login=$SONAR_TOKEN
-                    """
+                // Use the name of the SonarQube installation in Jenkins (must match exactly)
+                withSonarQubeEnv('SonarQube') {
+                    sh './mvnw sonar:sonar -Dsonar.projectKey=java-web-app -Dsonar.projectName="Java Web App"'
                 }
             }
         }
@@ -86,6 +79,15 @@ pipeline {
             }
         }
 
+        stage('Deploy with Docker Compose') {
+            steps {
+                sh """
+                    docker-compose -f docker-compose.yml pull
+                    docker-compose -f docker-compose.yml up -d
+                """
+            }
+        }
+
         // Uncomment and configure this stage if you want Kubernetes deployment
         /*
         stage('Deploy to Kubernetes') {
@@ -100,15 +102,6 @@ pipeline {
             }
         }
         */
-        stage('Deploy with Docker Compose') {
-    steps {
-        sh """
-            docker-compose -f docker-compose.yml pull
-            docker-compose -f docker-compose.yml up -d
-        """
-    }
-}
-
     }
 
     post {
