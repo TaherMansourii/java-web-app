@@ -54,7 +54,6 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                // Use the name of the SonarQube installation in Jenkins (must match exactly)
                 withSonarQubeEnv('SonarQube') {
                     sh './mvnw sonar:sonar -Dsonar.projectKey=java-web-app -Dsonar.projectName="Java Web App"'
                 }
@@ -88,6 +87,39 @@ pipeline {
             }
         }
 
+        // ✅ New Stage: OWASP ZAP Scan
+        stage('OWASP ZAP Scan') {
+            steps {
+                script {
+                    echo "Running OWASP ZAP baseline scan..."
+
+                    // Dynamically detect mapped port for the app
+                    def port = sh(
+                        script: "docker ps --filter 'ancestor=$DOCKER_IMAGE' --format '{{.Ports}}' | grep -oP '(?<=:)[0-9]+(?=-)' | head -n 1",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!port) {
+                        error "Could not detect application port automatically!"
+                    }
+
+                    echo "Detected app running on port ${port}"
+
+                    // Run ZAP scan in Docker
+                    sh """
+                        docker run --rm -v \$(pwd):/zap/wrk/:rw ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+                            -t http://localhost:${port} \
+                            -r zap_report.html \
+                            -J zap_report.json \
+                            -z "-config api.disablekey=true"
+                    """
+                }
+
+                // Archive ZAP results for review in Jenkins
+                archiveArtifacts artifacts: 'zap_report.*', allowEmptyArchive: true
+            }
+        }
+
         stage('Generate HTML Report') {
             steps {
                 script {
@@ -108,23 +140,19 @@ pipeline {
                         <li>✅ Secrets Scan</li>
                         <li>✅ Unit Tests</li>
                         <li>✅ Dependency Check</li>
-                        <li>✅ Compilation</li>
+                        <li>✅ Trivy Scan</li>
                         <li>✅ SonarQube Analysis</li>
-                        <li>✅ Docker Build</li>
-                        <li>✅ Docker Push</li>
+                        <li>✅ Docker Build & Push</li>
                         <li>✅ Deployment</li>
+                        <li>✅ OWASP ZAP Scan</li>
                     </ul>
                     </body>
                     </html>
                     """
-                    
+
                     writeFile file: 'pipeline-report.html', text: htmlContent
-                    
-                    // ✅ ARCHIVE THE FILE - This will make it appear in "Build Artifacts"
                     archiveArtifacts artifacts: 'pipeline-report.html', allowEmptyArchive: true
-                    
-                    // Also archive test results if available
-                    archiveArtifacts artifacts: '*/target/surefire-reports/.html', allowEmptyArchive: true
+                    archiveArtifacts artifacts: '*/target/surefire-reports/*.html', allowEmptyArchive: true
                 }
             }
         }
@@ -139,3 +167,4 @@ pipeline {
         }
     }
 }
+
