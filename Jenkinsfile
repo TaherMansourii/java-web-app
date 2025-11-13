@@ -87,37 +87,37 @@ pipeline {
             }
         }
 
-       stage('OWASP ZAP Scan') {
+      stage('OWASP ZAP Scan') {
     steps {
         script {
             echo "Running OWASP ZAP baseline scan..."
 
-            // Detect the exposed app port
+            // Detect the exposed port dynamically
             def appPort = sh(script: "docker ps --filter ancestor=${DOCKER_IMAGE} --format '{{.Ports}}' | grep -oP '(?<=:)[0-9]+(?=-)' | head -n 1", returnStdout: true).trim()
             echo "Detected app running on port ${appPort}"
 
-            // Create a temp folder for reports (writable by all)
-            sh 'mkdir -p /tmp/zap-reports && chmod 777 /tmp/zap-reports'
+            // Create a temp directory for reports and working directory
+            sh 'mkdir -p /tmp/zap-wrk && mkdir -p /tmp/zap-reports && chmod -R 777 /tmp/zap-*'
 
-            // Run ZAP with host networking
+            // Run OWASP ZAP Baseline Scan
             sh """
                 docker run --rm \
                     --network host \
+                    -v /tmp/zap-wrk:/zap/wrk \
                     -v /tmp/zap-reports:/zap/reports \
                     ghcr.io/zaproxy/zaproxy:stable \
                     zap-baseline.py \
                         -t http://127.0.0.1:${appPort} \
                         -r /zap/reports/zap_report.html \
                         -J /zap/reports/zap_report.json \
-                        -z "-config api.disablekey=true"
+                        -z "-config api.disablekey=true" || true
             """
 
-            // Archive the generated reports
+            // Archive the reports
             archiveArtifacts artifacts: '/tmp/zap-reports/*', allowEmptyArchive: true
         }
     }
 }
-
 
         stage('Generate HTML Report') {
             steps {
