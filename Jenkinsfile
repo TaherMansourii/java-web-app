@@ -87,7 +87,47 @@ pipeline {
                 """
             }
         }
-
+stage('Generate HTML Report') {
+            steps {
+                script {
+                    def htmlContent = """
+                    <html>
+                    <head><title>Pipeline Execution Report</title></head>
+                    <body>
+                    <h1>Pipeline Build Report</h1>
+                    <h2>Build #${env.BUILD_NUMBER}</h2>
+                    <p><strong>Status:</strong> ${currentBuild.currentResult ?: 'SUCCESS'}</p>
+                    <p><strong>Date:</strong> ${new Date().format("yyyy-MM-dd HH:mm")}</p>
+                    <p><strong>Project:</strong> ${env.JOB_NAME}</p>
+                    <p><strong>Duration:</strong> ${currentBuild.durationString ?: 'N/A'}</p>
+                    <hr>
+                    <h3>Build Steps Completed:</h3>
+                    <ul>
+                        <li>✅ Git Checkout</li>
+                        <li>✅ Secrets Scan</li>
+                        <li>✅ Unit Tests</li>
+                        <li>✅ Dependency Check</li>
+                        <li>✅ Compilation</li>
+                        <li>✅ SonarQube Analysis</li>
+                        <li>✅ Docker Build</li>
+                        <li>✅ Docker Push</li>
+                        <li>✅ Deployment</li>
+                    </ul>
+                    </body>
+                    </html>
+                    """
+                    
+                    writeFile file: 'pipeline-report.html', text: htmlContent
+                    
+                    // ✅ ARCHIVE THE FILE - This will make it appear in "Build Artifacts"
+                    archiveArtifacts artifacts: 'pipeline-report.html', allowEmptyArchive: true
+                    
+                    // Also archive test results if available
+                    archiveArtifacts artifacts: '*/target/surefire-reports/.html', allowEmptyArchive: true
+                }
+            }
+        }
+    }
         // Uncomment and configure this stage if you want Kubernetes deployment
         /*
         stage('Deploy to Kubernetes') {
