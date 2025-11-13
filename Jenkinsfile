@@ -87,38 +87,37 @@ pipeline {
             }
         }
 
-        // ✅ New Stage: OWASP ZAP Scan
-        stage('OWASP ZAP Scan') {
-            steps {
-                script {
-                    echo "Running OWASP ZAP baseline scan..."
+       stage('OWASP ZAP Scan') {
+    steps {
+        script {
+            echo "Running OWASP ZAP baseline scan..."
 
-                    // Dynamically detect mapped port for the app
-                    def port = sh(
-                        script: "docker ps --filter 'ancestor=$DOCKER_IMAGE' --format '{{.Ports}}' | grep -oP '(?<=:)[0-9]+(?=-)' | head -n 1",
-                        returnStdout: true
-                    ).trim()
+            // Detect the exposed app port
+            def appPort = sh(script: "docker ps --filter ancestor=${DOCKER_IMAGE} --format '{{.Ports}}' | grep -oP '(?<=:)[0-9]+(?=-)' | head -n 1", returnStdout: true).trim()
+            echo "Detected app running on port ${appPort}"
 
-                    if (!port) {
-                        error "Could not detect application port automatically!"
-                    }
+            // Create a temp folder for reports (writable by all)
+            sh 'mkdir -p /tmp/zap-reports && chmod 777 /tmp/zap-reports'
 
-                    echo "Detected app running on port ${port}"
+            // Run ZAP with host networking
+            sh """
+                docker run --rm \
+                    --network host \
+                    -v /tmp/zap-reports:/zap/reports \
+                    ghcr.io/zaproxy/zaproxy:stable \
+                    zap-baseline.py \
+                        -t http://127.0.0.1:${appPort} \
+                        -r /zap/reports/zap_report.html \
+                        -J /zap/reports/zap_report.json \
+                        -z "-config api.disablekey=true"
+            """
 
-                    // Run ZAP scan in Docker
-                    sh """
-                        docker run --rm -v \$(pwd):/zap/wrk/:rw ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-                            -t http://localhost:${port} \
-                            -r zap_report.html \
-                            -J zap_report.json \
-                            -z "-config api.disablekey=true"
-                    """
-                }
-
-                // Archive ZAP results for review in Jenkins
-                archiveArtifacts artifacts: 'zap_report.*', allowEmptyArchive: true
-            }
+            // Archive the generated reports
+            archiveArtifacts artifacts: '/tmp/zap-reports/*', allowEmptyArchive: true
         }
+    }
+}
+
 
         stage('Generate HTML Report') {
             steps {
