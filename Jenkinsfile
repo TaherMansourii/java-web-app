@@ -87,7 +87,8 @@ pipeline {
                 """
             }
         }
-stage('Generate HTML Report') {
+
+        stage('Generate HTML Report') {
             steps {
                 script {
                     def htmlContent = """
@@ -128,27 +129,47 @@ stage('Generate HTML Report') {
             }
         }
     }
-        // Uncomment and configure this stage if you want Kubernetes deployment
-        /*
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig-minikube', variable: 'KUBECONFIG')]) {
-                    sh """
-                        echo "Deploying to Kubernetes..."
-                        kubectl --kubeconfig="$KUBECONFIG" set image deployment/$K8S_DEPLOYMENT $K8S_DEPLOYMENT=$DOCKER_IMAGE -n $K8S_NAMESPACE
-                        kubectl --kubeconfig="$KUBECONFIG" rollout status deployment/$K8S_DEPLOYMENT -n $K8S_NAMESPACE
-                    """
-                }
-            }
-        }
-        */
-    }
 
     post {
+        // Étape 10 : Send Email
         success {
+            mail to: 'gloubgraa@gmail.com',
+                subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER} Completed",
+                body: """
+                Build Successfully Completed!
+
+                Job Name: ${env.JOB_NAME}
+                Build Number: #${env.BUILD_NUMBER}
+                Build Duration: ${currentBuild.durationString}
+                
+                Console Output: ${env.BUILD_URL}console
+                Build Details: ${env.BUILD_URL}
+                
+                All tests passed and artifacts were successfully deployed.
+                """
+            
             echo 'Pipeline completed successfully!'
         }
         failure {
+            mail to: 'gloubgraa@gmail.com',
+                subject: "URGENT: ${env.JOB_NAME} #${env.BUILD_NUMBER} Failed",
+                body: """
+                BUILD FAILURE ALERT!
+
+                Job Name: ${env.JOB_NAME}
+                Build Number: #${env.BUILD_NUMBER}
+                Build Duration: ${currentBuild.durationString}
+                
+                Error Location: ${env.BUILD_URL}console
+                Build Details: ${env.BUILD_URL}
+                
+                Immediate Action Required:
+                1. Review console output for errors
+                2. Check recent code changes
+                3. Verify dependency services
+                4. Re-run build after fixes
+                """
+            
             echo 'Pipeline failed. Check the logs.'
         }
     }
